@@ -1,1 +1,52 @@
+name: Compilar NOA (iPhone)
 
+on: [push, workflow_dispatch]
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        run: |
+          npm install --legacy-peer-deps
+          npx expo install react react-native expo-status-bar expo-speech-recognition expo-sqlite expo-notifications expo-speech -- --legacy-peer-deps
+
+      - name: Gerar projeto iOS
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Tirar permissão de push
+        run: |
+          for f in ios/*/*.entitlements; do
+            /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$f" || true
+          done
+
+      - name: Instalar CocoaPods
+        run: cd ios && pod install
+
+      - name: Compilar sem assinatura
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -n1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/NOA.xcarchive -quiet archive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Montar o NOA.ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/NOA.xcarchive/Products/Applications/*.app Payload/
+          zip -qry NOA.ipa Payload
+
+      - name: Disponibilizar para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOA-ipa
+          path: NOA.ipa
+          retention-days: 30

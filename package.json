@@ -1,0 +1,13 @@
+{
+  "name": "noa",
+  "version": "0.2.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "expo": "latest"
+  }
+}

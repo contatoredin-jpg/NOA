@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "NOA",
+    "slug": "noa",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0f1115",
+    "ios": {
+      "bundleIdentifier": "com.noa.assistente",
+      "supportsTablet": false,
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "O NOA usa o microfone para ouvir quando você chama e lembrar das suas conversas.",
+        "NSSpeechRecognitionUsageDescription": "O NOA transforma a fala em texto no próprio iPhone para entender o que você diz."
+      }
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "O NOA usa o microfone para ouvir quando você chama e lembrar das suas conversas.",
+          "speechRecognitionPermission": "O NOA transforma a fala em texto no próprio iPhone para entender o que você diz."
+        }
+      ],
+      "expo-sqlite",
+      "expo-notifications"
+    ]
+  }
+}

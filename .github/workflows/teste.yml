@@ -1,0 +1,9 @@
+name: Teste de maquina
+
+on: [push, workflow_dispatch]
+
+jobs:
+  teste:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Maquina liberada!"

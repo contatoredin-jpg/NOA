@@ -15,7 +15,7 @@ workflows:
       - name: Instalar dependencias
         script: |
           npm install --legacy-peer-deps
-          npx expo install react react-native expo-status-bar expo-speech-recognition expo-sqlite expo-notifications expo-speech expo-splash-screen -- --legacy-peer-deps
+          npx expo install react react-native expo-status-bar expo-speech-recognition expo-sqlite expo-notifications expo-speech expo-splash-screen expo-calendar expo-location expo-contacts -- --legacy-peer-deps
       - name: Gerar projeto iOS
         script: npx expo prebuild --platform ios --clean --no-install
       - name: Tirar permissao de push

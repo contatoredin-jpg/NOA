@@ -34,6 +34,8 @@ import {
 } from './src/db';
 import type { Ajustes, Aviso, Compromisso, Conversa, Momento, Pessoa } from './src/db';
 import { conversar, resumoDoDia } from './src/ia';
+import { agendaEmTexto, eventosProximos, executarAcoes, lugarAtual, pedirPermissoesExtras, textoEvento } from './src/acoes';
+import type { EventoAgenda } from './src/acoes';
 import {
   agendarResumoNoturno,
   avisarAgora,
@@ -129,10 +131,13 @@ export default function App() {
       setPensando(true);
       try {
         const cfg = await lerAjustes();
-        const r = await conversar(cfg, comando, recente, await contextoMemoria(true));
+        const [memoria, agenda, lugar] = await Promise.all([contextoMemoria(true), agendaEmTexto(), lugarAtual()]);
+        const r = await conversar(cfg, comando, recente, memoria, { agenda, lugar });
+        const problemas = await executarAcoes(r.acoes);
+        const fala = [r.fala, ...problemas].join(' ');
         setPensando(false);
-        dizer(r);
-        salvarConversa(comando, r).then(() => setVersao((v) => v + 1));
+        dizer(fala);
+        salvarConversa(comando, fala).then(() => setVersao((v) => v + 1));
       } catch (e: any) {
         setPensando(false);
         dizer('Xi, não consegui pensar agora. Tô sem internet ou a IA travou.');
@@ -192,6 +197,7 @@ export default function App() {
     }
     try {
       await pedirPermissaoAvisos();
+      await pedirPermissoesExtras();
       await agendarResumoNoturno(cfg.horaResumo);
       await configurarVoz(cfg);
       iniciarCerebro(cfg.trechoMin, dizer);
@@ -450,10 +456,13 @@ function Conversar({ dizer }: { dizer: (t: string) => void }) {
     setCarregando(true);
     try {
       const cfg = await lerAjustes();
-      const r = await conversar(cfg, pedido, '', await contextoMemoria(true));
-      salvarConversa(pedido, r);
-      setResposta(r);
-      if (lendo) dizer(r);
+      const [memoria, agenda, lugar] = await Promise.all([contextoMemoria(true), agendaEmTexto(), lugarAtual()]);
+      const r = await conversar(cfg, pedido, '', memoria, { agenda, lugar });
+      const problemas = await executarAcoes(r.acoes);
+      const fala = [r.fala, ...problemas].join(' ');
+      salvarConversa(pedido, fala);
+      setResposta(fala);
+      if (lendo) dizer(fala);
     } catch (e: any) {
       setResposta('Não consegui responder: ' + (e?.message ?? e));
     }
@@ -523,12 +532,22 @@ function Pessoas({ versao }: { versao: number }) {
 
 function Agenda({ versao }: { versao: number }) {
   const [lista, setLista] = useState<Compromisso[]>([]);
+  const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [v, setV] = useState(0);
   useEffect(() => {
     listarCompromissos().then(setLista);
+    eventosProximos(7).then(setEventos);
   }, [versao, v]);
   return (
     <ScrollView contentContainerStyle={s.pad}>
+      <Text style={s.secao}>AGENDA DO IPHONE · 7 DIAS</Text>
+      {eventos.length === 0 && <Text style={s.cinza}>Nada marcado (ou o NOA ainda não tem permissão da agenda).</Text>}
+      {eventos.map((e, i) => (
+        <View key={'ev' + i} style={s.cartao}>
+          <Text style={s.texto}>{textoEvento(e)}</Text>
+        </View>
+      ))}
+      <Text style={s.secao}>COMBINADOS QUE O NOA OUVIU</Text>
       {lista.length === 0 && <Text style={s.cinza}>Nenhum compromisso em aberto.</Text>}
       {lista.map((c) => (
         <View key={c.id} style={s.cartao}>

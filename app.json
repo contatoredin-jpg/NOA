@@ -2,7 +2,7 @@
   "expo": {
     "name": "NOA",
     "slug": "noa",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#04050d",
@@ -14,7 +14,10 @@
           "audio"
         ],
         "NSMicrophoneUsageDescription": "O NOA usa o microfone para ouvir quando você chama e lembrar das suas conversas.",
-        "NSSpeechRecognitionUsageDescription": "O NOA transforma a fala em texto no próprio iPhone para entender o que você diz."
+        "NSSpeechRecognitionUsageDescription": "O NOA transforma a fala em texto no próprio iPhone para entender o que você diz.",
+        "LSApplicationQueriesSchemes": [
+          "whatsapp"
+        ]
       }
     },
     "plugins": [
@@ -33,6 +36,25 @@
           "image": "./assets/cerebro.png",
           "imageWidth": 220,
           "backgroundColor": "#04050d"
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "O NOA usa sua agenda para marcar compromissos quando você pede e avisar de conflitos.",
+          "remindersPermission": "O NOA cria lembretes quando você pede."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O NOA usa sua localização para saber onde você está e lembrar onde as conversas aconteceram."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "O NOA procura o número dos seus contatos para deixar a mensagem do WhatsApp pronta."
         }
       ]
     ],

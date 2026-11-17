@@ -53,28 +53,72 @@ export async function agendarResumoNoturno(hora: number): Promise<void> {
   } catch {}
 }
 
-let vozEscolhida: string | undefined;
+export type Voz = { id: string; nome: string; idioma: string; qualidade: string };
 
-/** Procura a melhor voz em português do Brasil instalada no iPhone. */
-export async function escolherVoz(): Promise<void> {
+let vozAtual: string | undefined;
+let velocidade = 1.0;
+let tom = 1.0;
+
+function nivel(q: string): number {
+  const v = q.toLowerCase();
+  if (v.includes('premium')) return 3;
+  if (v.includes('enhanced')) return 2;
+  return 1;
+}
+
+export function nomeQualidade(q: string): string {
+  const n = nivel(q);
+  return n === 3 ? 'Premium' : n === 2 ? 'Aprimorada' : 'Padrão';
+}
+
+/** Banco de vozes: todas as vozes em português instaladas no iPhone, as melhores primeiro. */
+export async function listarVozes(): Promise<Voz[]> {
   try {
     const vozes = await Speech.getAvailableVoicesAsync();
-    const pt = vozes.filter((v) => (v.language ?? '').toLowerCase().replace('_', '-').startsWith('pt-br'));
-    const boa = pt.find((v) => String(v.quality).toLowerCase() === 'enhanced') ?? pt[0];
-    vozEscolhida = boa?.identifier;
-  } catch {}
+    return vozes
+      .filter((v) => (v.language ?? '').toLowerCase().startsWith('pt'))
+      .map((v) => ({
+        id: v.identifier,
+        nome: v.name,
+        idioma: v.language,
+        qualidade: String(v.quality ?? ''),
+      }))
+      .sort((a, b) => {
+        const br = (x: Voz) => (x.idioma.toLowerCase().replace('_', '-') === 'pt-br' ? 1 : 0);
+        return nivel(b.qualidade) - nivel(a.qualidade) || br(b) - br(a) || a.nome.localeCompare(b.nome);
+      });
+  } catch {
+    return [];
+  }
+}
+
+/** Aplica a voz escolhida nos Ajustes. Sem escolha, usa a melhor voz pt-BR instalada. */
+export async function configurarVoz(cfg: { voz: string; velocidade: number; tom: number }): Promise<void> {
+  velocidade = cfg.velocidade || 1.0;
+  tom = cfg.tom || 1.0;
+  if (cfg.voz) {
+    vozAtual = cfg.voz;
+    return;
+  }
+  const vozes = await listarVozes();
+  vozAtual = vozes[0]?.id;
 }
 
 /** Fala o texto. aoMudar(true) quando começa, aoMudar(false) quando termina. */
-export function falar(texto: string, aoMudar?: (falando: boolean) => void): void {
+export function falar(
+  texto: string,
+  aoMudar?: (falando: boolean) => void,
+  teste?: { voz?: string; velocidade?: number; tom?: number }
+): void {
   try {
     Speech.stop();
     aoMudar?.(true);
-    const fim = () => setTimeout(() => aoMudar?.(false), 700);
+    const fim = () => setTimeout(() => aoMudar?.(false), 600);
     Speech.speak(texto, {
       language: 'pt-BR',
-      voice: vozEscolhida,
-      rate: 1.05,
+      voice: teste?.voz ?? vozAtual,
+      rate: teste?.velocidade ?? velocidade,
+      pitch: teste?.tom ?? tom,
       onDone: fim,
       onStopped: fim,
       onError: fim,

@@ -12,6 +12,15 @@ export type Ajustes = {
   horaResumo: number; // hora do lembrete do resumo da noite
   jeito: string; // como o NOA deve falar
   conversaSemNome: boolean; // continuar a conversa sem repetir "NOA"
+  // IA
+  provedor: 'gemini' | 'openai'; // quem responde quando você chama o NOA
+  modeloRapido: string; // modelo Gemini usado na conversa falada (rápido)
+  openaiKey: string;
+  modeloOpenai: string;
+  // Voz
+  voz: string; // identificador da voz do iPhone ('' = escolher a melhor automaticamente)
+  velocidade: number;
+  tom: number;
 };
 
 export const AJUSTES_PADRAO: Ajustes = {
@@ -26,6 +35,13 @@ export const AJUSTES_PADRAO: Ajustes = {
   jeito:
     'Bem coloquial, como amigo próximo brasileiro: frases curtas, "pra", "tá", "beleza", "cara", "fechou". Sem formalidade e sem enrolação. Imita o jeito que eu falo.',
   conversaSemNome: true,
+  provedor: 'gemini',
+  modeloRapido: 'gemini-flash-lite-latest',
+  openaiKey: '',
+  modeloOpenai: 'gpt-6-astra',
+  voz: '',
+  velocidade: 1.0,
+  tom: 1.0,
 };
 
 export type Pessoa = { id: number; nome: string; detalhes: string; visto_em: number };
@@ -234,7 +250,7 @@ export async function contextoMemoria(completo: boolean): Promise<string> {
   const db = await getDb();
   const pessoas = await db.getAllAsync<Pessoa>(
     'SELECT * FROM pessoas ORDER BY visto_em DESC LIMIT ?',
-    [completo ? 120 : 60]
+    [completo ? 80 : 60]
   );
   const compromissos = await db.getAllAsync<Compromisso>(
     "SELECT * FROM compromissos WHERE feito = 0 ORDER BY COALESCE(quando, '9999') ASC LIMIT 40"
@@ -261,13 +277,13 @@ export async function contextoMemoria(completo: boolean): Promise<string> {
 
   if (completo) {
     const fatos = await db.getAllAsync<{ texto: string; criado_em: number }>(
-      'SELECT texto, criado_em FROM fatos ORDER BY criado_em DESC LIMIT 80'
+      'SELECT texto, criado_em FROM fatos ORDER BY criado_em DESC LIMIT 50'
     );
     if (fatos.length) {
       partes.push('FATOS E DECISÕES:\n' + fatos.map((f) => `- ${dataCurta(f.criado_em)}: ${f.texto}`).join('\n'));
     }
     const conversas = await db.getAllAsync<Conversa>(
-      'SELECT * FROM conversas ORDER BY criado_em DESC LIMIT 15'
+      'SELECT * FROM conversas ORDER BY criado_em DESC LIMIT 10'
     );
     if (conversas.length) {
       partes.push(
@@ -276,7 +292,7 @@ export async function contextoMemoria(completo: boolean): Promise<string> {
       );
     }
     const momentos = await db.getAllAsync<Momento>(
-      'SELECT * FROM momentos ORDER BY inicio DESC LIMIT 120'
+      'SELECT * FROM momentos ORDER BY inicio DESC LIMIT 60'
     );
     if (momentos.length) {
       partes.push(

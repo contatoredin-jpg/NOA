@@ -161,7 +161,7 @@ export class Ouvido {
       return;
     }
     this.limparSilencio();
-    this.timerSilencio = setTimeout(() => this.fecharFrase(), 1300);
+    this.timerSilencio = setTimeout(() => this.fecharFrase(), 900);
   }
 
   private fecharFrase(): void {

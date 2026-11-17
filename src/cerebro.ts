@@ -1,6 +1,6 @@
 // Memória em segundo plano: junta o que foi falado por alguns minutos,
 // manda o TEXTO para a IA, que extrai pessoas, compromissos, fatos e avisos.
-import { analisarTexto } from './gemini';
+import { analisarTexto } from './ia';
 import { contextoMemoria, lerAjustes, salvarAnalise } from './db';
 import type { Analise, Ajustes } from './db';
 import { agendarAviso, avisarAgora, dataLocal } from './avisos';
@@ -97,7 +97,7 @@ async function rodarFila(): Promise<void> {
     const item = fila[0];
     try {
       const cfg = await lerAjustes();
-      if (!cfg.apiKey) throw new Error('Falta a chave da API. Coloca em Ajustes.');
+      if (!cfg.apiKey && !cfg.openaiKey) throw new Error('Falta a chave da IA. Coloca em Ajustes.');
       const memoria = await contextoMemoria(false);
       const analise = await analisarTexto(cfg, item.texto, item.inicio, memoria);
       if (analise.descartar) {

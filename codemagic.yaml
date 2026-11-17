@@ -7,10 +7,15 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Gerar icone e marca neon
+        script: |
+          python3 -m venv /tmp/py
+          /tmp/py/bin/pip install -q pillow
+          /tmp/py/bin/python tools/gerar_icone.py assets
       - name: Instalar dependencias
         script: |
           npm install --legacy-peer-deps
-          npx expo install react react-native expo-status-bar expo-speech-recognition expo-sqlite expo-notifications expo-speech -- --legacy-peer-deps
+          npx expo install react react-native expo-status-bar expo-speech-recognition expo-sqlite expo-notifications expo-speech expo-splash-screen -- --legacy-peer-deps
       - name: Gerar projeto iOS
         script: npx expo prebuild --platform ios --clean --no-install
       - name: Tirar permissao de push

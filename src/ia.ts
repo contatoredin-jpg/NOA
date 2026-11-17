@@ -1,6 +1,7 @@
 // Cérebro do NOA: Gemini (plano grátis) ou OpenAI (GPT-6 Astra, pago por uso).
 // Só TEXTO é enviado, nunca áudio.
 import type { Ajustes, Analise } from './db';
+import type { Acao } from './acoes';
 
 const BASE_GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const BASE_OPENAI = 'https://api.openai.com/v1/responses';
@@ -103,11 +104,17 @@ Fale sempre em português do Brasil, do jeito que as pessoas falam no dia a dia,
 
 // ---------- Memória: analisar o que foi ouvido ----------
 
-export async function analisarTexto(cfg: Ajustes, texto: string, inicio: number, memoria: string): Promise<Analise> {
+export async function analisarTexto(
+  cfg: Ajustes,
+  texto: string,
+  inicio: number,
+  memoria: string,
+  lugar = ''
+): Promise<Analise> {
   const prompt = `${persona(cfg)}
 
 Abaixo está a transcrição automática do que o microfone do celular ouviu, a partir de ${agoraTexto(inicio)} (horário local).
-Ela NÃO separa quem fala e pode ter erros de reconhecimento. Frases com "NOA" são o dono falando com você.
+${lugar ? `Local (GPS): ${lugar}.\n` : ''}Ela NÃO separa quem fala e pode ter erros de reconhecimento. Frases com "NOA" são o dono falando com você.
 
 REGRAS:
 1. Se for só TV, rádio, música, ou conversa de gente ao redor que claramente não envolve o dono, responda apenas {"descartar": true}.
@@ -138,21 +145,36 @@ Responda SOMENTE com JSON neste formato:
 
 // ---------- Conversa: quando chamam "NOA" ----------
 
+export type RespostaNoa = { fala: string; acoes: Acao[] };
+
 export async function conversar(
   cfg: Ajustes,
   pedido: string,
   conversaRecente: string,
-  memoria: string
-): Promise<string> {
+  memoria: string,
+  extras: { agenda?: string; lugar?: string } = {}
+): Promise<RespostaNoa> {
   const prompt = `${persona(cfg)}
 
-Agora é ${agoraTexto(Date.now())}. O dono acabou de te chamar e você vai RESPONDER FALANDO (a resposta vira voz).
+Agora é ${agoraTexto(Date.now())}. O dono acabou de te chamar e você vai RESPONDER FALANDO (a "fala" vira voz).
 - Responda como amigo, curto: 1 a 3 frases, a não ser que ele peça detalhe.
 - Sem listas, sem asteriscos, sem emoji, sem markdown. Números e datas do jeito que se fala.
 - Copie o jeito de falar dele (veja a conversa recente abaixo): se ele fala gíria, você fala gíria.
-- Use a memória pra responder sobre pessoas, datas e combinados. Se não souber, fala que não sabe e dá a melhor ideia que tiver.
+- Use a memória, a agenda e a localização pra responder. Se não souber, fala que não sabe e dá a melhor ideia que tiver.
 - Se ele pedir opinião ou conselho, seja sincero, mesmo que seja pra discordar.
-- Se ele pedir pra lembrar de algo, confirma rapidinho (a memória guarda sozinha).
+
+VOCÊ PODE AGIR NO CELULAR DELE (coloque em "acoes"):
+- Marcar na agenda ("marca", "agenda", "coloca na agenda"): {"tipo": "evento", "titulo": "...", "inicio": "AAAA-MM-DDTHH:MM" (ou "AAAA-MM-DD" se não tiver hora), "fim": "AAAA-MM-DDTHH:MM" ou null, "local": "..." ou null}
+- Lembrar de algo ("me lembra", "não deixa eu esquecer"): {"tipo": "lembrete", "titulo": "...", "quando": "AAAA-MM-DDTHH:MM" ou null}
+- Mandar ou responder mensagem no WhatsApp: {"tipo": "whatsapp", "contato": "nome como ele falou", "texto": "mensagem pronta, no jeito dele, em primeira pessoa"}
+Converta "amanhã", "quinta", "dia 20", "daqui a uma hora" em data real usando a data de agora. Antes de marcar, confira a agenda e avise se tiver conflito.
+Na "fala", confirme o que fez, curtinho (ex.: "Fechado, marquei amanhã às dez com o Marcos"). No WhatsApp, diga que deixou a mensagem pronta pra ele enviar.
+Se ele não pediu nenhuma ação, "acoes" fica [].
+
+ONDE O DONO ESTÁ AGORA: ${extras.lugar || 'desconhecido (sem GPS)'}
+
+AGENDA DO IPHONE (próximos 7 dias):
+${extras.agenda || '(sem acesso)'}
 
 MEMÓRIA:
 ${memoria}
@@ -161,13 +183,25 @@ O QUE FOI FALADO NOS ÚLTIMOS MINUTOS (pode incluir outras pessoas):
 ${conversaRecente || '(nada)'}
 
 O DONO DISSE AGORA:
-${pedido}`;
+${pedido}
+
+Responda SOMENTE com JSON: {"fala": "o que você vai falar", "acoes": []}`;
   const r = await chamar(cfg, prompt, {
-    temperatura: 0.7,
+    json: true,
+    temperatura: 0.6,
     rapido: true,
     usarOpenai: cfg.provedor === 'openai',
   });
-  return r.replace(/[*_#`]/g, '').trim();
+  let fala = '';
+  let acoes: Acao[] = [];
+  try {
+    const j = lerJson(r);
+    fala = String(j?.fala ?? '');
+    acoes = Array.isArray(j?.acoes) ? j.acoes : [];
+  } catch {
+    fala = r;
+  }
+  return { fala: fala.replace(/[*_#`]/g, '').trim() || 'Beleza.', acoes };
 }
 
 // ---------- Resumo do dia ----------

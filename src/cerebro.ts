@@ -4,9 +4,10 @@ import { analisarTexto } from './ia';
 import { contextoMemoria, lerAjustes, salvarAnalise } from './db';
 import type { Analise, Ajustes } from './db';
 import { agendarAviso, avisarAgora, dataLocal } from './avisos';
+import { lugarAtual } from './acoes';
 
 type Frase = { t: number; texto: string };
-type Item = { inicio: number; texto: string; tentativas: number };
+type Item = { inicio: number; texto: string; tentativas: number; lugar?: string };
 
 let buffer: Frase[] = [];
 const fila: Item[] = [];
@@ -99,11 +100,13 @@ async function rodarFila(): Promise<void> {
       const cfg = await lerAjustes();
       if (!cfg.apiKey && !cfg.openaiKey) throw new Error('Falta a chave da IA. Coloca em Ajustes.');
       const memoria = await contextoMemoria(false);
-      const analise = await analisarTexto(cfg, item.texto, item.inicio, memoria);
+      if (item.lugar === undefined) item.lugar = await lugarAtual();
+      const analise = await analisarTexto(cfg, item.texto, item.inicio, memoria, item.lugar);
       if (analise.descartar) {
         descartados++;
       } else {
         analise.transcricao = item.texto;
+        if (item.lugar) analise.contexto = [analise.contexto, item.lugar].filter(Boolean).join(' · ');
         await salvarAnalise(analise, item.inicio);
         await reagir(analise, cfg);
         analisados++;
